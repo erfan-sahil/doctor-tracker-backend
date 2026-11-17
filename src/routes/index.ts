@@ -2,11 +2,13 @@ import { Router } from "express";
 
 import { authRouter } from "../modules/auth/index.js";
 import { doctorRouter } from "../modules/doctor/index.js";
+import { patientRouter } from "../modules/patient/index.js";
 
 const v1Router = Router();
 
 v1Router.use("/auth", authRouter);
 v1Router.use("/doctors", doctorRouter);
+v1Router.use("/patients", patientRouter);
 
 export const apiRouter = Router();
 

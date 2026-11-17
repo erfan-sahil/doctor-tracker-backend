@@ -5,7 +5,8 @@ import { isDuplicateKeyError } from "../../utils/mongo.js";
 import { hashPassword } from "../../utils/password.js";
 import { toPublicUser, type PublicUser } from "../user/user.mapper.js";
 import { User, type UserDocument } from "../user/user.model.js";
-import { Patient, type PatientDocument } from "../patient/patient.model.js";
+import { Patient } from "../patient/patient.model.js";
+import { toPatient, type PatientResponse } from "../patient/patient.service.js";
 import type {
   CreateDoctorInput,
   ListDoctorsQuery,
@@ -38,12 +39,6 @@ export type PaginatedDoctors = {
   totalPages: number;
 };
 
-export type PatientResponse = {
-  id: string;
-  name: string;
-  doctorId: string;
-};
-
 type CreatedAccount = {
   doctor: DoctorDocument;
   user: UserDocument;
@@ -59,14 +54,6 @@ function toDoctor(doctor: DoctorDocument): DoctorResponse {
     name: doctor.name,
     specialization: doctor.specialization,
     hospital: doctor.hospital,
-  };
-}
-
-function toPatient(patient: PatientDocument): PatientResponse {
-  return {
-    id: patient.id,
-    name: patient.name,
-    doctorId: patient.doctorId.toString(),
   };
 }
 
@@ -149,11 +136,7 @@ function buildDoctorListFilter(query: ListDoctorsQuery): DoctorListFilter {
 
   if (query.search) {
     const pattern = new RegExp(escapeRegex(query.search), "i");
-    filter.$or = [
-      { name: pattern },
-      { specialization: pattern },
-      { hospital: pattern },
-    ];
+    filter.$or = [{ name: pattern }, { specialization: pattern }, { hospital: pattern }];
   }
 
   return filter;

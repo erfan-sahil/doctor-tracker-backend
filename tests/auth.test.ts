@@ -6,11 +6,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createApp } from "../src/app.js";
 import { env } from "../src/config/env.js";
+import { Patient } from "../src/modules/patient/patient.model.js";
 import { User } from "../src/modules/user/user.model.js";
 import { hashPassword } from "../src/utils/password.js";
 
 const app = createApp();
 const adminPassword = "admin-password";
+const doctorPassword = "doctor-password";
 
 let replSet: MongoMemoryReplSet;
 
@@ -206,5 +208,210 @@ describe("authentication", () => {
 
     const missingCookie = await request(app).post("/api/v1/auth/logout");
     expect(missingCookie.status).toBe(200);
+  });
+});
+
+describe("doctor management", () => {
+  async function createDoctorAsAdmin(
+    adminToken: string,
+    payload: {
+      name: string;
+      email: string;
+      specialization?: string;
+      hospital?: string;
+    },
+  ) {
+    return request(app)
+      .post("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        ...payload,
+        password: doctorPassword,
+      });
+  }
+
+  it("lets an admin create a doctor and blocks a doctor from that route", async () => {
+    await createAdmin();
+    const token = await accessTokenFor("admin@example.com", adminPassword);
+
+    const unauthenticated = await request(app).post("/api/v1/doctors").send({
+      name: "Dr Ada",
+      email: "ada@example.com",
+      password: doctorPassword,
+    });
+    expect(unauthenticated.status).toBe(401);
+
+    const created = await request(app)
+      .post("/api/v1/doctors")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Dr Ada",
+        email: "ada@example.com",
+        password: doctorPassword,
+        specialization: "Cardiology",
+      });
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.user.role).toBe("doctor");
+    expect(created.body.data.user.doctorId).toBe(created.body.data.doctor.id);
+
+    const duplicate = await request(app)
+      .post("/api/v1/doctors")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Dr Ada",
+        email: "ada@example.com",
+        password: doctorPassword,
+      });
+    expect(duplicate.status).toBe(409);
+
+    const doctorToken = await accessTokenFor("ada@example.com", doctorPassword);
+    const forbidden = await request(app)
+      .post("/api/v1/doctors")
+      .set("Authorization", `Bearer ${doctorToken}`)
+      .send({
+        name: "Dr Grace",
+        email: "grace@example.com",
+        password: doctorPassword,
+      });
+
+    expect(forbidden.status).toBe(403);
+  });
+
+  it("lets admins manage doctors and blocks doctors from doctor routes", async () => {
+    await createAdmin();
+    const adminToken = await accessTokenFor("admin@example.com", adminPassword);
+
+    const created = await createDoctorAsAdmin(adminToken, {
+      name: "Dr Ada",
+      email: "ada@example.com",
+      specialization: "Cardiology",
+      hospital: "City General",
+    });
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.doctor).toMatchObject({
+      name: "Dr Ada",
+      specialization: "Cardiology",
+      hospital: "City General",
+    });
+
+    const doctorId = created.body.data.doctor.id as string;
+    const doctorToken = await accessTokenFor("ada@example.com", doctorPassword);
+
+    const doctorList = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${doctorToken}`);
+    expect(doctorList.status).toBe(403);
+
+    const doctorGet = await request(app)
+      .get(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${doctorToken}`);
+    expect(doctorGet.status).toBe(403);
+
+    const doctorPatch = await request(app)
+      .patch(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${doctorToken}`)
+      .send({ name: "Dr Changed" });
+    expect(doctorPatch.status).toBe(403);
+
+    const doctorDelete = await request(app)
+      .delete(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${doctorToken}`);
+    expect(doctorDelete.status).toBe(403);
+
+    const doctorPatients = await request(app)
+      .get(`/api/v1/doctors/${doctorId}/patients`)
+      .set("Authorization", `Bearer ${doctorToken}`);
+    expect(doctorPatients.status).toBe(403);
+
+    await createDoctorAsAdmin(adminToken, {
+      name: "Dr Grace",
+      email: "grace@example.com",
+      specialization: "Neurology",
+      hospital: "Metro Health",
+    });
+
+    const list = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .query({ page: 1, limit: 10 });
+
+    expect(list.status).toBe(200);
+    expect(list.body.data.total).toBe(2);
+    expect(list.body.data.doctors).toHaveLength(2);
+    expect(list.body.data.doctors[0].user.email).toEqual(expect.any(String));
+
+    const searchByHospital = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .query({ search: "Metro" });
+
+    expect(searchByHospital.status).toBe(200);
+    expect(searchByHospital.body.data.doctors).toHaveLength(1);
+    expect(searchByHospital.body.data.doctors[0].doctor.name).toBe("Dr Grace");
+
+    const filterSpecialization = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .query({ specialization: "cardiology" });
+
+    expect(filterSpecialization.status).toBe(200);
+    expect(filterSpecialization.body.data.doctors).toHaveLength(1);
+    expect(filterSpecialization.body.data.doctors[0].doctor.name).toBe("Dr Ada");
+
+    const details = await request(app)
+      .get(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(details.status).toBe(200);
+    expect(details.body.data.user.email).toBe("ada@example.com");
+
+    const updated = await request(app)
+      .patch(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "Dr Ada Renamed", hospital: null });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.data.doctor.name).toBe("Dr Ada Renamed");
+    expect(updated.body.data.doctor.hospital).toBeNull();
+    expect(updated.body.data.user.name).toBe("Dr Ada Renamed");
+
+    const patient = await Patient.create({
+      name: "Patient A",
+      doctorId,
+    });
+
+    const blockedDelete = await request(app)
+      .delete(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(blockedDelete.status).toBe(409);
+    expect(blockedDelete.body.message).toBe("Doctor has assigned patients");
+
+    const patientsList = await request(app)
+      .get(`/api/v1/doctors/${doctorId}/patients`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(patientsList.status).toBe(200);
+    expect(patientsList.body.data).toHaveLength(1);
+    expect(patientsList.body.data[0]).toMatchObject({
+      name: "Patient A",
+      doctorId,
+    });
+
+    await Patient.deleteOne({ _id: patient.id });
+
+    const removed = await request(app)
+      .delete(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(removed.status).toBe(200);
+
+    const missing = await request(app)
+      .get(`/api/v1/doctors/${doctorId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(missing.status).toBe(404);
   });
 });

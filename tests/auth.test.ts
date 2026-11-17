@@ -13,6 +13,7 @@ import { hashPassword } from "../src/utils/password.js";
 const app = createApp();
 const adminPassword = "admin-password";
 const doctorPassword = "doctor-password";
+const defaultDoctorPhone = "+1-555-0100";
 
 let replSet: MongoMemoryReplSet;
 
@@ -217,6 +218,7 @@ describe("doctor management", () => {
     payload: {
       name: string;
       email: string;
+      phone?: string;
       specialization?: string;
       hospital?: string;
     },
@@ -225,6 +227,7 @@ describe("doctor management", () => {
       .post("/api/v1/doctors")
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
+        phone: defaultDoctorPhone,
         ...payload,
         password: doctorPassword,
       });
@@ -236,6 +239,7 @@ describe("doctor management", () => {
 
     const unauthenticated = await request(app).post("/api/v1/doctors").send({
       name: "Dr Ada",
+      phone: defaultDoctorPhone,
       email: "ada@example.com",
       password: doctorPassword,
     });
@@ -246,12 +250,14 @@ describe("doctor management", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({
         name: "Dr Ada",
+        phone: defaultDoctorPhone,
         email: "ada@example.com",
         password: doctorPassword,
         specialization: "Cardiology",
       });
 
     expect(created.status).toBe(201);
+    expect(created.body.data.doctor.phone).toBe(defaultDoctorPhone);
     expect(created.body.data.user.role).toBe("doctor");
     expect(created.body.data.user.doctorId).toBe(created.body.data.doctor.id);
 
@@ -260,6 +266,7 @@ describe("doctor management", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({
         name: "Dr Ada",
+        phone: defaultDoctorPhone,
         email: "ada@example.com",
         password: doctorPassword,
       });
@@ -271,6 +278,7 @@ describe("doctor management", () => {
       .set("Authorization", `Bearer ${doctorToken}`)
       .send({
         name: "Dr Grace",
+        phone: "+1-555-0101",
         email: "grace@example.com",
         password: doctorPassword,
       });
@@ -292,6 +300,7 @@ describe("doctor management", () => {
     expect(created.status).toBe(201);
     expect(created.body.data.doctor).toMatchObject({
       name: "Dr Ada",
+      phone: defaultDoctorPhone,
       specialization: "Cardiology",
       hospital: "City General",
     });
@@ -370,10 +379,11 @@ describe("doctor management", () => {
     const updated = await request(app)
       .patch(`/api/v1/doctors/${doctorId}`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ name: "Dr Ada Renamed", hospital: null });
+      .send({ name: "Dr Ada Renamed", hospital: null, phone: "+1-555-0199" });
 
     expect(updated.status).toBe(200);
     expect(updated.body.data.doctor.name).toBe("Dr Ada Renamed");
+    expect(updated.body.data.doctor.phone).toBe("+1-555-0199");
     expect(updated.body.data.doctor.hospital).toBeNull();
     expect(updated.body.data.user.name).toBe("Dr Ada Renamed");
 

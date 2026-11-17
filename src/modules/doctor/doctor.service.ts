@@ -17,6 +17,7 @@ import { Doctor, type DoctorDocument } from "./doctor.model.js";
 export type DoctorResponse = {
   id: string;
   name: string;
+  phone: string;
   specialization: string | null;
   hospital: string | null;
 };
@@ -57,6 +58,7 @@ function toDoctor(doctor: DoctorDocument): DoctorResponse {
   return {
     id: doctor.id,
     name: doctor.name,
+    phone: doctor.phone,
     specialization: doctor.specialization,
     hospital: doctor.hospital,
   };
@@ -99,7 +101,9 @@ async function requireDoctorUser(doctorId: string): Promise<UserDocument> {
 type DoctorListFilter = {
   specialization?: RegExp;
   hospital?: RegExp;
-  $or?: Array<{ name: RegExp } | { specialization: RegExp } | { hospital: RegExp }>;
+  $or?: Array<
+    { name: RegExp } | { phone: RegExp } | { specialization: RegExp } | { hospital: RegExp }
+  >;
 };
 
 function buildDoctorListFilter(query: ListDoctorsQuery): DoctorListFilter {
@@ -115,7 +119,12 @@ function buildDoctorListFilter(query: ListDoctorsQuery): DoctorListFilter {
 
   if (query.search) {
     const pattern = new RegExp(escapeRegex(query.search), "i");
-    filter.$or = [{ name: pattern }, { specialization: pattern }, { hospital: pattern }];
+    filter.$or = [
+      { name: pattern },
+      { phone: pattern },
+      { specialization: pattern },
+      { hospital: pattern },
+    ];
   }
 
   return filter;
@@ -128,6 +137,7 @@ async function saveDoctorAccount(
 ): Promise<CreatedAccount> {
   const doctor = new Doctor({
     name: input.name,
+    phone: input.phone,
     specialization: input.specialization ?? null,
     hospital: input.hospital ?? null,
   });
@@ -279,6 +289,10 @@ export async function updateDoctor(
   if (input.name !== undefined) {
     doctor.name = input.name;
     user.name = input.name;
+  }
+
+  if (input.phone !== undefined) {
+    doctor.phone = input.phone;
   }
 
   if (input.specialization !== undefined) {

@@ -2,8 +2,16 @@ import { z } from "zod";
 
 import { objectIdSchema } from "../patient/patient.schema.js";
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, "Phone is required")
+  .max(30, "Phone is too long")
+  .regex(/^[\d\s+().-]+$/, "Enter a valid phone number");
+
 export const createDoctorSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
+  phone: phoneSchema,
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   password: z
     .string()
@@ -54,10 +62,12 @@ export const updateDoctorSchema = z
         z.null(),
       ])
       .optional(),
+    phone: phoneSchema.optional(),
   })
   .refine(
     (value) =>
       value.name !== undefined ||
+      value.phone !== undefined ||
       value.specialization !== undefined ||
       value.hospital !== undefined,
     { message: "At least one field is required" },

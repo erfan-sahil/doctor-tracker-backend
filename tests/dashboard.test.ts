@@ -10,6 +10,7 @@ import { hashPassword } from "../src/utils/password.js";
 const app = createApp();
 const adminPassword = "admin-password";
 const doctorPassword = "doctor-password";
+const defaultDoctorPhone = "+1-555-0100";
 
 let replSet: MongoMemoryReplSet;
 
@@ -57,6 +58,7 @@ async function createDoctor(
     .post("/api/v1/doctors")
     .set("Authorization", `Bearer ${adminToken}`)
     .send({
+      phone: defaultDoctorPhone,
       ...payload,
       password: doctorPassword,
     });

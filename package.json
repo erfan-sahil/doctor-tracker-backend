@@ -12,7 +12,11 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "vitest run",
-    "seed:admin": "tsx src/scripts/seedAdmin.ts"
+    "seed:admin": "tsx src/scripts/seedAdmin.ts",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f api mongodb",
+    "docker:seed": "docker compose run --rm api node dist/scripts/seedAdmin.js"
   },
   "engines": {
     "node": ">=20"

@@ -7,6 +7,7 @@ import {
   createPatientHandler,
   deletePatientHandler,
   getPatientHandler,
+  listPatientFilterOptionsHandler,
   listPatientsHandler,
   updatePatientHandler,
 } from "./patient.controller.js";
@@ -28,6 +29,7 @@ patientRouter.get(
   validate(listPatientsQuerySchema, "query"),
   listPatientsHandler,
 );
+patientRouter.get("/filters", ...staff, listPatientFilterOptionsHandler);
 patientRouter.get(
   "/:id",
   ...staff,

@@ -9,6 +9,7 @@ import {
   createPatient,
   deletePatient,
   getPatient,
+  getPatientFilterOptions,
   listPatients,
   updatePatient,
 } from "./patient.service.js";
@@ -34,6 +35,11 @@ export const listPatientsHandler = asyncHandler(async (req, res) => {
     req.query as unknown as ListPatientsQuery,
   );
   res.status(200).json(apiResponse("Patients retrieved", result));
+});
+
+export const listPatientFilterOptionsHandler = asyncHandler(async (req, res) => {
+  const options = await getPatientFilterOptions(requireUser(req));
+  res.status(200).json(apiResponse("Patient filter options retrieved", options));
 });
 
 export const getPatientHandler = asyncHandler(async (req, res) => {

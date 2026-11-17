@@ -26,6 +26,10 @@ export type PaginatedPatients = {
   totalPages: number;
 };
 
+export type PatientFilterOptions = {
+  conditions: string[];
+};
+
 type PatientListFilter = {
   doctorId?: string;
   condition?: RegExp;
@@ -35,6 +39,12 @@ type PatientListFilter = {
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sortDistinctValues(values: unknown[]): string[] {
+  return values
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .sort((left, right) => left.localeCompare(right));
 }
 
 export function toDateOnly(value: string): Date {
@@ -166,6 +176,19 @@ export async function createPatient(
   });
 
   return toPatient(patient);
+}
+
+export async function getPatientFilterOptions(actor: AuthUser): Promise<PatientFilterOptions> {
+  const conditionScope =
+    actor.role === "doctor"
+      ? { doctorId: new Types.ObjectId(requireActorDoctorId(actor)) }
+      : {};
+
+  const conditions = await Patient.distinct("condition", conditionScope);
+
+  return {
+    conditions: sortDistinctValues(conditions),
+  };
 }
 
 export async function listPatients(

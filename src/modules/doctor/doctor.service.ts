@@ -6,7 +6,7 @@ import { hashPassword } from "../../utils/password.js";
 import { toPublicUser, type PublicUser } from "../user/user.mapper.js";
 import { User, type UserDocument } from "../user/user.model.js";
 import { Patient } from "../patient/patient.model.js";
-import { toPatient, type PatientResponse } from "../patient/patient.service.js";
+import { toDateOnly, toPatient, type PatientResponse } from "../patient/patient.service.js";
 import type {
   CreateDoctorInput,
   ListDoctorsQuery,
@@ -101,6 +101,7 @@ async function requireDoctorUser(doctorId: string): Promise<UserDocument> {
 type DoctorListFilter = {
   specialization?: RegExp;
   hospital?: RegExp;
+  createdAt?: { $gte?: Date; $lt?: Date };
   $or?: Array<
     { name: RegExp } | { phone: RegExp } | { specialization: RegExp } | { hospital: RegExp }
   >;
@@ -125,6 +126,22 @@ function buildDoctorListFilter(query: ListDoctorsQuery): DoctorListFilter {
       { specialization: pattern },
       { hospital: pattern },
     ];
+  }
+
+  if (query.createdFrom || query.createdTo) {
+    const createdAt: { $gte?: Date; $lt?: Date } = {};
+
+    if (query.createdFrom) {
+      createdAt.$gte = toDateOnly(query.createdFrom);
+    }
+
+    if (query.createdTo) {
+      const end = toDateOnly(query.createdTo);
+      end.setUTCDate(end.getUTCDate() + 1);
+      createdAt.$lt = end;
+    }
+
+    filter.createdAt = createdAt;
   }
 
   return filter;

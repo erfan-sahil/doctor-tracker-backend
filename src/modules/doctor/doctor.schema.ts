@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { objectIdSchema } from "../patient/patient.schema.js";
+import { dateOnlySchema, objectIdSchema } from "../patient/patient.schema.js";
 
 const phoneSchema = z
   .string()
@@ -35,13 +35,19 @@ export const doctorParamsSchema = z.object({
   id: objectIdSchema(),
 });
 
-export const listDoctorsQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-  search: z.string().trim().min(1).optional(),
-  specialization: z.string().trim().min(1).optional(),
-  hospital: z.string().trim().min(1).optional(),
-});
+export const listDoctorsQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    search: z.string().trim().min(1).optional(),
+    specialization: z.string().trim().min(1).optional(),
+    hospital: z.string().trim().min(1).optional(),
+    createdFrom: dateOnlySchema.optional(),
+    createdTo: dateOnlySchema.optional(),
+  })
+  .refine((value) => !value.createdFrom || !value.createdTo || value.createdFrom <= value.createdTo, {
+    message: "createdFrom must not be after createdTo",
+  });
 
 export const updateDoctorSchema = z
   .object({

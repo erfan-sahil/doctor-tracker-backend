@@ -369,6 +369,22 @@ describe("doctor management", () => {
     expect(filterSpecialization.body.data.doctors).toHaveLength(1);
     expect(filterSpecialization.body.data.doctors[0].doctor.name).toBe("Dr Ada");
 
+    const today = new Date().toISOString().slice(0, 10);
+    const filterCreatedToday = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .query({ createdFrom: today, createdTo: today });
+
+    expect(filterCreatedToday.status).toBe(200);
+    expect(filterCreatedToday.body.data.total).toBe(2);
+
+    const invalidCreatedRange = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .query({ createdFrom: "2099-12-31", createdTo: "2099-01-01" });
+
+    expect(invalidCreatedRange.status).toBe(400);
+
     const details = await request(app)
       .get(`/api/v1/doctors/${doctorId}`)
       .set("Authorization", `Bearer ${adminToken}`);

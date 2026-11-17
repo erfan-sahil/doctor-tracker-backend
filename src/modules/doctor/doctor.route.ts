@@ -7,6 +7,7 @@ import {
   createDoctor,
   deleteDoctorHandler,
   getDoctorHandler,
+  listDoctorFilterOptionsHandler,
   listDoctorPatientsHandler,
   listDoctorsHandler,
   updateDoctorHandler,
@@ -24,6 +25,7 @@ const adminOnly = [authenticate, authorize("admin")] as const;
 
 doctorRouter.post("/", ...adminOnly, validate(createDoctorSchema), createDoctor);
 doctorRouter.get("/", ...adminOnly, validate(listDoctorsQuerySchema, "query"), listDoctorsHandler);
+doctorRouter.get("/filters", ...adminOnly, listDoctorFilterOptionsHandler);
 doctorRouter.get(
   "/:id/patients",
   ...adminOnly,

@@ -1,0 +1,7 @@
+# Optional: expose MongoDB on localhost for Compass / mongosh (not for production).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yml up
+
+services:
+  mongodb:
+    ports:
+      - "127.0.0.1:27017:27017"

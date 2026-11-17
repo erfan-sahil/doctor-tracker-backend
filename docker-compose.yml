@@ -5,8 +5,6 @@ services:
     image: mongo:7
     container_name: doctor-tracker-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -24,13 +22,9 @@ services:
     restart: unless-stopped
     ports:
       # Host 5001: macOS AirPlay often occupies 5000
-      - "5001:5000"
+      - "${API_HOST_PORT:-5001}:5000"
     env_file:
       - docker.env
-    environment:
-      NODE_ENV: production
-      PORT: 5000
-      MONGODB_URI: mongodb://mongodb:27017/doctor-tracker
     depends_on:
       mongodb:
         condition: service_healthy

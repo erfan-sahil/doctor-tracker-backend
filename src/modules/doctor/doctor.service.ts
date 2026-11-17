@@ -1,7 +1,7 @@
 import mongoose, { type ClientSession } from "mongoose";
 
 import { ApiError } from "../../utils/ApiError.js";
-import { isDuplicateKeyError } from "../../utils/mongo.js";
+import { isDuplicateKeyError, isTransactionUnsupported } from "../../utils/mongo.js";
 import { hashPassword } from "../../utils/password.js";
 import { toPublicUser, type PublicUser } from "../user/user.mapper.js";
 import { User, type UserDocument } from "../user/user.model.js";
@@ -39,6 +39,11 @@ export type PaginatedDoctors = {
   totalPages: number;
 };
 
+export type DoctorFilterOptions = {
+  specializations: string[];
+  hospitals: string[];
+};
+
 type CreatedAccount = {
   doctor: DoctorDocument;
   user: UserDocument;
@@ -69,32 +74,6 @@ function toDoctorWithUser(doctor: DoctorDocument, user: UserDocument): DoctorWit
     doctor: toDoctor(doctor),
     user: toPublicUser(user),
   };
-}
-
-function isTransactionUnsupported(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const record = error as {
-    code?: unknown;
-    codeName?: unknown;
-    message?: unknown;
-    cause?: unknown;
-  };
-
-  if (record.code === 20 || record.codeName === "IllegalOperation") {
-    return true;
-  }
-
-  if (
-    typeof record.message === "string" &&
-    record.message.includes("Transaction numbers are only allowed")
-  ) {
-    return true;
-  }
-
-  return isTransactionUnsupported(record.cause);
 }
 
 async function requireDoctor(doctorId: string): Promise<DoctorDocument> {
@@ -224,6 +203,24 @@ export async function createDoctorAccount(
 
     throw error;
   }
+}
+
+function sortDistinctValues(values: unknown[]): string[] {
+  return values
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+export async function getDoctorFilterOptions(): Promise<DoctorFilterOptions> {
+  const [specializations, hospitals] = await Promise.all([
+    Doctor.distinct("specialization"),
+    Doctor.distinct("hospital"),
+  ]);
+
+  return {
+    specializations: sortDistinctValues(specializations),
+    hospitals: sortDistinctValues(hospitals),
+  };
 }
 
 export async function listDoctors(query: ListDoctorsQuery): Promise<PaginatedDoctors> {

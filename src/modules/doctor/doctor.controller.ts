@@ -7,6 +7,7 @@ import {
   createDoctorAccount,
   deleteDoctor,
   getDoctorById,
+  getDoctorFilterOptions,
   listDoctorPatients,
   listDoctors,
   updateDoctor,
@@ -31,6 +32,11 @@ export const createDoctor = asyncHandler(async (req, res) => {
 export const listDoctorsHandler = asyncHandler(async (req, res) => {
   const result = await listDoctors(req.query as unknown as ListDoctorsQuery);
   res.status(200).json(apiResponse("Doctors retrieved", result));
+});
+
+export const listDoctorFilterOptionsHandler = asyncHandler(async (_req, res) => {
+  const options = await getDoctorFilterOptions();
+  res.status(200).json(apiResponse("Doctor filter options retrieved", options));
 });
 
 export const getDoctorHandler = asyncHandler(async (req, res) => {

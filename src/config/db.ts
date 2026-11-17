@@ -7,6 +7,8 @@ export async function connectDb(): Promise<void> {
   mongoose.set("strictQuery", true);
   await mongoose.connect(env.MONGODB_URI, {
     serverSelectionTimeoutMS: 5000,
+    // Standalone Mongo (e.g. default docker compose) has no replica set / transactions.
+    retryWrites: false,
   });
   logger.info("Connected to MongoDB");
 }

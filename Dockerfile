@@ -8,7 +8,7 @@ RUN npm ci
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY tsconfig.json ./
+COPY package.json package-lock.json tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
@@ -24,7 +24,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh && chown app:app /entrypoint.sh
 
 USER app
 

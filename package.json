@@ -15,8 +15,9 @@
     "seed:admin": "tsx src/scripts/seedAdmin.ts",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f api mongodb",
-    "docker:seed": "docker compose run --rm api node dist/scripts/seedAdmin.js"
+    "docker:logs": "docker compose logs -f",
+    "docker:seed": "docker compose run --rm -e SEED_ADMIN=true api node dist/scripts/seedAdmin.js",
+    "docker:ps": "docker compose ps"
   },
   "engines": {
     "node": ">=20"

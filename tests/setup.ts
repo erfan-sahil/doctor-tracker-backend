@@ -1,0 +1,11 @@
+process.env.NODE_ENV = "test";
+process.env.PORT = "5000";
+process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/doctor-tracker-test";
+process.env.CORS_ORIGIN = "http://localhost:3000";
+process.env.ACCESS_TOKEN_SECRET = "test-access-token-secret-32chars-min";
+process.env.REFRESH_TOKEN_SECRET = "test-refresh-token-secret-32chars-min";
+process.env.ACCESS_TOKEN_TTL = "15m";
+process.env.REFRESH_TOKEN_TTL = "7d";
+process.env.ADMIN_NAME = "Admin";
+process.env.ADMIN_EMAIL = "admin@example.com";
+process.env.ADMIN_PASSWORD = "admin-password";

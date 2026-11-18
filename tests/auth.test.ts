@@ -360,6 +360,15 @@ describe("doctor management", () => {
     expect(searchByHospital.body.data.doctors).toHaveLength(1);
     expect(searchByHospital.body.data.doctors[0].doctor.name).toBe("Dr Grace");
 
+    const searchByEmail = await request(app)
+      .get("/api/v1/doctors")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .query({ search: "ada@example.com" });
+
+    expect(searchByEmail.status).toBe(200);
+    expect(searchByEmail.body.data.doctors).toHaveLength(1);
+    expect(searchByEmail.body.data.doctors[0].doctor.name).toBe("Dr Ada");
+
     const filterSpecialization = await request(app)
       .get("/api/v1/doctors")
       .set("Authorization", `Bearer ${adminToken}`)

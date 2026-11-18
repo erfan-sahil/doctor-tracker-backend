@@ -170,6 +170,15 @@ describe("patient management", () => {
       ),
     ).toBe(true);
 
+    const searchByCondition = await request(app)
+      .get("/api/v1/patients")
+      .query({ search: "migraine" })
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(searchByCondition.status).toBe(200);
+    expect(searchByCondition.body.data.total).toBe(1);
+    expect(searchByCondition.body.data.patients[0].name).toBe("Mina Brooks");
+
     const byDoctor = await request(app)
       .get("/api/v1/patients")
       .query({ doctorId: grace.id })

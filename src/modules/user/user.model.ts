@@ -26,6 +26,7 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.index({ doctorId: 1 });
+userSchema.index({ role: 1, email: 1 });
 
 userSchema.pre("validate", function () {
   if (this.role === "doctor" && !this.doctorId) {

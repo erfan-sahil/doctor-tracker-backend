@@ -33,7 +33,7 @@ export type PatientFilterOptions = {
 type PatientListFilter = {
   doctorId?: string;
   condition?: RegExp;
-  name?: RegExp;
+  $or?: Array<{ name: RegExp } | { condition: RegExp }>;
   date?: { $gte: Date; $lt: Date };
 };
 
@@ -64,9 +64,20 @@ export function formatDateOnly(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
-export function toPatient(patient: PatientDocument): PatientResponse {
+type PatientLike = Pick<PatientDocument, "name" | "doctorId" | "condition" | "date"> & {
+  id?: string;
+  _id?: Types.ObjectId;
+};
+
+export function toPatient(patient: PatientDocument | PatientLike): PatientResponse {
+  const id = patient.id ?? patient._id?.toString();
+
+  if (!id) {
+    throw new Error("Invalid patient");
+  }
+
   return {
-    id: patient.id,
+    id,
     name: patient.name,
     doctorId: patient.doctorId.toString(),
     condition: patient.condition ?? null,
@@ -148,7 +159,8 @@ function buildPatientListFilter(
   }
 
   if (query.search) {
-    filter.name = new RegExp(escapeRegex(query.search), "i");
+    const pattern = new RegExp(escapeRegex(query.search), "i");
+    filter.$or = [{ name: pattern }, { condition: pattern }];
   }
 
   if (query.date) {
@@ -202,7 +214,7 @@ export async function listPatients(
 
   const [total, patients] = await Promise.all([
     Patient.countDocuments(filter),
-    Patient.find(filter).sort({ _id: -1 }).skip(skip).limit(limit),
+    Patient.find(filter).sort({ _id: -1 }).skip(skip).limit(limit).lean(),
   ]);
 
   return {

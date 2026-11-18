@@ -10,7 +10,8 @@ export type PublicUser = {
 };
 
 type UserLike = {
-  id: string;
+  id?: string;
+  _id?: { toString(): string };
   name: string;
   email: string;
   role: UserRole;
@@ -19,8 +20,14 @@ type UserLike = {
 };
 
 export function toPublicUser(user: UserLike): PublicUser {
+  const id = user.id ?? user._id?.toString();
+
+  if (!id) {
+    throw new Error("Invalid user");
+  }
+
   return {
-    id: user.id,
+    id,
     name: user.name,
     email: user.email,
     role: user.role,

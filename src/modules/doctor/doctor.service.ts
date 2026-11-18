@@ -50,13 +50,26 @@ type CreatedAccount = {
   user: UserDocument;
 };
 
+const DOCTOR_PATIENTS_LIST_LIMIT = 500;
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function toDoctor(doctor: DoctorDocument): DoctorResponse {
+type DoctorLike = Pick<DoctorDocument, "name" | "phone" | "specialization" | "hospital"> & {
+  id?: string;
+  _id?: mongoose.Types.ObjectId;
+};
+
+function toDoctor(doctor: DoctorDocument | DoctorLike): DoctorResponse {
+  const id = doctor.id ?? doctor._id?.toString();
+
+  if (!id) {
+    throw new Error("Invalid doctor");
+  }
+
   return {
-    id: doctor.id,
+    id,
     name: doctor.name,
     phone: doctor.phone,
     specialization: doctor.specialization,
@@ -71,7 +84,10 @@ function toDoctorAccount(created: CreatedAccount): DoctorAccount {
   };
 }
 
-function toDoctorWithUser(doctor: DoctorDocument, user: UserDocument): DoctorWithUser {
+function toDoctorWithUser(
+  doctor: DoctorDocument | DoctorLike,
+  user: UserDocument | Parameters<typeof toPublicUser>[0],
+): DoctorWithUser {
   return {
     doctor: toDoctor(doctor),
     user: toPublicUser(user),
@@ -103,11 +119,15 @@ type DoctorListFilter = {
   hospital?: RegExp;
   createdAt?: { $gte?: Date; $lt?: Date };
   $or?: Array<
-    { name: RegExp } | { phone: RegExp } | { specialization: RegExp } | { hospital: RegExp }
+    | { name: RegExp }
+    | { phone: RegExp }
+    | { specialization: RegExp }
+    | { hospital: RegExp }
+    | { _id: { $in: mongoose.Types.ObjectId[] } }
   >;
 };
 
-function buildDoctorListFilter(query: ListDoctorsQuery): DoctorListFilter {
+async function buildDoctorListFilter(query: ListDoctorsQuery): Promise<DoctorListFilter> {
   const filter: DoctorListFilter = {};
 
   if (query.specialization) {
@@ -120,12 +140,26 @@ function buildDoctorListFilter(query: ListDoctorsQuery): DoctorListFilter {
 
   if (query.search) {
     const pattern = new RegExp(escapeRegex(query.search), "i");
-    filter.$or = [
+    const or: NonNullable<DoctorListFilter["$or"]> = [
       { name: pattern },
       { phone: pattern },
       { specialization: pattern },
       { hospital: pattern },
     ];
+
+    const matchingUsers = await User.find({ role: "doctor", email: pattern })
+      .select("doctorId")
+      .lean();
+
+    const doctorIds = matchingUsers
+      .map((user) => user.doctorId)
+      .filter((doctorId): doctorId is mongoose.Types.ObjectId => doctorId != null);
+
+    if (doctorIds.length > 0) {
+      or.push({ _id: { $in: doctorIds } });
+    }
+
+    filter.$or = or;
   }
 
   if (query.createdFrom || query.createdTo) {
@@ -251,28 +285,29 @@ export async function getDoctorFilterOptions(): Promise<DoctorFilterOptions> {
 }
 
 export async function listDoctors(query: ListDoctorsQuery): Promise<PaginatedDoctors> {
-  const filter = buildDoctorListFilter(query);
+  const filter = await buildDoctorListFilter(query);
   const page = query.page;
   const limit = query.limit;
   const skip = (page - 1) * limit;
 
   const [total, doctors] = await Promise.all([
     Doctor.countDocuments(filter),
-    Doctor.find(filter).sort({ _id: -1 }).skip(skip).limit(limit),
+    Doctor.find(filter).sort({ _id: -1 }).skip(skip).limit(limit).lean(),
   ]);
 
   const doctorIds = doctors.map((doctor) => doctor._id);
   const users = await User.find({
     role: "doctor",
     doctorId: { $in: doctorIds },
-  });
+  }).lean();
 
   const usersByDoctorId = new Map(
     users.map((user) => [user.doctorId?.toString() ?? "", user]),
   );
 
   const doctorsWithUsers = doctors.map((doctor) => {
-    const user = usersByDoctorId.get(doctor.id);
+    const doctorKey = doctor._id.toString();
+    const user = usersByDoctorId.get(doctorKey);
 
     if (!user) {
       throw new ApiError(500, "Doctor account is incomplete");
@@ -369,6 +404,10 @@ export async function deleteDoctor(doctorId: string): Promise<void> {
 export async function listDoctorPatients(doctorId: string): Promise<PatientResponse[]> {
   await requireDoctor(doctorId);
 
-  const patients = await Patient.find({ doctorId }).sort({ _id: -1 });
+  const patients = await Patient.find({ doctorId })
+    .sort({ date: -1, _id: -1 })
+    .limit(DOCTOR_PATIENTS_LIST_LIMIT)
+    .lean();
+
   return patients.map(toPatient);
 }

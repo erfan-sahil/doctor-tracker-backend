@@ -20,6 +20,7 @@ const patientSchema = new Schema<IPatient>(
 );
 
 patientSchema.index({ doctorId: 1, date: -1 });
+patientSchema.index({ doctorId: 1, _id: -1 });
 patientSchema.index({ condition: 1, date: -1 });
 patientSchema.index({ name: 1 });
 
